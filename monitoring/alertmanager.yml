@@ -1,0 +1,61 @@
+global:
+  # How long to wait before sending a notification again if it has been sent
+  resolve_timeout: 5m
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'alertes@example.com'
+  smtp_auth_username: 'alertes@example.com'
+  smtp_auth_password: 'YOUR_SMTP_PASSWORD'
+  smtp_require_tls: true
+
+# Templates
+# templates:
+#   - '/etc/alertmanager/templates/*.tmpl'
+
+# Routing tree
+route:
+  receiver: 'email-receiver'
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+
+  routes:
+    # Critical alerts → send immediately
+    - match:
+        severity: critical
+      receiver: 'email-receiver'
+      group_wait: 10s
+      repeat_interval: 1h
+
+    # Warning alerts → standard route
+    - match:
+        severity: warning
+      receiver: 'email-receiver'
+
+# Receivers
+receivers:
+  - name: 'email-receiver'
+    email_configs:
+      - to: 'admin@example.com'
+        send_resolved: true
+        headers:
+          Subject: '[{{ .Status | toUpper }}] {{ .CommonAnnotations.summary }}'
+        html: |
+          <b>Alertes:</b>
+          {{ range .Alerts }}
+          <hr>
+          <b>Nom :</b> {{ .Labels.alertname }}<br>
+          <b>Sévérité :</b> {{ .Labels.severity }}<br>
+          <b>Instance :</b> {{ .Labels.instance }}<br>
+          <b>Résumé :</b> {{ .Annotations.summary }}<br>
+          <b>Description :</b> {{ .Annotations.description }}<br>
+          <b>Début :</b> {{ .StartsAt }}<br>
+          {{ end }}
+
+# Inhibition rules – suppress warning if critical already firing
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'instance']

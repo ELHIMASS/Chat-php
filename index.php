@@ -1,14 +1,4 @@
 <?php
-
-// Ce petit code va créer la table automatiquement s'il elle n'existe pas
-$sql = "CREATE TABLE IF NOT EXISTS messages (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(255) NOT NULL,
-    message TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)";
-$pdo->exec($sql); 
-
 // Configuration de la connexion à la base de données
 $dsn = 'mysql:host='.getenv("MARIADB_HOST").';dbname='.getenv("MARIADB_DATABASE").'';
 $username = getenv("MARIADB_USER");
@@ -33,8 +23,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !empty($_POST['username']) && !empty
     exit;
 }
 ?>
-
-
 
 <!DOCTYPE html>
 <html lang="en">

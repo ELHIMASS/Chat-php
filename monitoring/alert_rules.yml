@@ -1,0 +1,56 @@
+groups:
+  - name: host_alerts
+    interval: 30s
+    rules:
+      # ── CPU ──────────────────────────────────────────────────────
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU usage élevé sur {{ $labels.instance }}"
+          description: "L'utilisation CPU est à {{ $value | printf \"%.1f\" }}% depuis plus de 2 minutes."
+
+      # ── Mémoire ──────────────────────────────────────────────────
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Mémoire RAM élevée sur {{ $labels.instance }}"
+          description: "La mémoire utilisée est à {{ $value | printf \"%.1f\" }}% depuis plus de 2 minutes."
+
+      # ── Disque ───────────────────────────────────────────────────
+      - alert: DiskSpaceLow
+        expr: (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|aufs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|aufs|overlay"})) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Espace disque faible sur {{ $labels.instance }}"
+          description: "Partition {{ $labels.mountpoint }} utilisée à {{ $value | printf \"%.1f\" }}%."
+
+      # ── Instance down ─────────────────────────────────────────────
+      - alert: InstanceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance {{ $labels.instance }} hors ligne"
+          description: "Le job {{ $labels.job }} n'est plus accessible depuis plus d'1 minute."
+
+  - name: container_alerts
+    interval: 30s
+    rules:
+      # ── Conteneur redémarré ───────────────────────────────────────
+      - alert: ContainerRestarting
+        expr: rate(container_last_seen[5m]) > 0 and changes(container_start_time_seconds[5m]) > 2
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Conteneur {{ $labels.name }} redémarre souvent"
+          description: "Le conteneur {{ $labels.name }} a redémarré plusieurs fois."

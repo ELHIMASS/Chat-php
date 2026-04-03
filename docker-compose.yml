@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # ─── PHP Chat App ──────────────────────────────────────────────
+  chat:
+    build: .
+    container_name: php-chat
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      MARIADB_HOST: db
+      MARIADB_DATABASE: chatdb
+      MARIADB_USER: chatuser
+      MARIADB_PASSWORD: chatpassword
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  # ─── MariaDB ───────────────────────────────────────────────────
+  db:
+    image: mariadb:10.11
+    container_name: chat-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: chatdb
+      MYSQL_USER: chatuser
+      MYSQL_PASSWORD: chatpassword
+    volumes:
+      - db-data:/var/lib/mysql
+      - ./web.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - app-network
+
+  # ─── WordPress ─────────────────────────────────────────────────
+  wordpress:
+    image: wordpress:latest
+    container_name: wordpress
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    environment:
+      WORDPRESS_DB_HOST: wordpress-db
+      WORDPRESS_DB_USER: wpuser
+      WORDPRESS_DB_PASSWORD: wppassword
+      WORDPRESS_DB_NAME: wpdb
+    depends_on:
+      wordpress-db:
+        condition: service_healthy
+    volumes:
+      - wp-data:/var/www/html
+    networks:
+      - app-network
+
+  # ─── WordPress DB ───────────────────────────────────────────────
+  wordpress-db:
+    image: mariadb:10.11
+    container_name: wordpress-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: wpdb
+      MYSQL_USER: wpuser
+      MYSQL_PASSWORD: wppassword
+    volumes:
+      - wp-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - app-network
+
+volumes:
+  db-data:
+  wp-data:
+  wp-db-data:
+
+networks:
+  app-network:
+    driver: bridge
